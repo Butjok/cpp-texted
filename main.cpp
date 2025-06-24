@@ -4,6 +4,7 @@
 #include <utility>
 #include <raylib.h>
 #include <functional>
+#include <format>
 #include "Widgets.h"
 
 using namespace std;
@@ -33,6 +34,7 @@ shared_ptr<UI::VerticalBox> window;
 shared_ptr<UI::VerticalBox> fileDialogue;
 shared_ptr<UI::UIWidget> activeWidget;
 shared_ptr<UI::Button> fileDialogueButton;
+shared_ptr<UI::Input> textarea;
 FileDialogueType fileDialogueType = FileDialogueType::Open;
 
 void OpenDialogue(FileDialogueType type) {
@@ -114,18 +116,26 @@ int main() {
 			};
 			label->backgroundColor = RAYWHITE;
 			auto slot = horizontalBox->AddSlot(label);
+			slot->expandRatio = 1;
+		}
+		{
+			//auto slot = horizontalBox->AddSlot(make_shared<UI::Label>("[info]"));
 		}
 	}
 	{
-		auto input = make_shared<UI::Input>(fileInfo.lines, BLACK, UI::Margin {10, 10, 10, 10});
-		input->onChange = []() {
+		textarea = make_shared<UI::Input>(fileInfo.lines, BLACK, UI::Margin {10, 10, 10, 10});
+		textarea->onChange = []() {
 			fileInfo.wasModified = fileInfo.lines != fileInfo.originalLines;
 		};
-		auto slot = window->AddSlot(input);
+		auto slot = window->AddSlot(textarea);
 		slot->expandRatio = 1;
 	}
 	{
-		window->AddSlot(make_shared<UI::Label>("Press F1 to open file dialogue", BLACK, UI::Margin {10, 10, 10, 10}));
+		auto label = make_shared<UI::Label>("");
+		label->textLambda = []() -> string {
+			return std::format("Line {}/{} : Column {}", textarea->CursorLine() + 1, textarea->lines.size(), textarea->CursorColumn() + 1);
+		};
+		window->AddSlot(label);
 	}
 
 	fileDialogue = make_shared<UI::VerticalBox>();

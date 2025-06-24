@@ -114,6 +114,25 @@ namespace UI {
 		//auto backgroundColor = isActive || isHovered ? GRAY : LIGHTGRAY;
 
 		DrawRectangleRec(layout, WHITE);
+
+		auto letterHeight = font.baseSize / GetWindowScaleDPI().y;
+		auto contentHeight = static_cast<float>(lines.size()) * letterHeight + padding.top + padding.bottom;
+		auto visibleHeight = layout.height;
+
+		if (contentHeight > visibleHeight) {
+			auto scrollBarWidth = 10.f;
+			auto totalSpan = contentHeight + visibleHeight;
+			auto scrollBarHeight = layout.height * (visibleHeight / totalSpan);
+			auto scrollBarY = layout.y + (topOffset / totalSpan) * layout.height;
+			DrawRectangle(
+				static_cast<int>(layout.x + layout.width - scrollBarWidth),
+				static_cast<int>(scrollBarY),
+				static_cast<int>(scrollBarWidth),
+				static_cast<int>(scrollBarHeight),
+				LIGHTGRAY
+			);
+		}
+
 		if (activeInput.get() == this) {
 			float thickness = 2;
 			DrawRectangleLinesEx(layout, thickness, BLUE);
@@ -122,7 +141,6 @@ namespace UI {
 
 		BeginScissorMode(layout);
 
-		auto letterHeight = font.baseSize / GetWindowScaleDPI().y;
 		auto y = layout.y + padding.top - topOffset;
 		auto whitespaces = string();
 		for (auto i = 0; i < lines.size(); i++) {
@@ -147,26 +165,9 @@ namespace UI {
 				2, letterHeight, BLACK);
 		}
 
-		auto contentHeight = static_cast<float>(lines.size()) * letterHeight + padding.top + padding.bottom;
-		auto visibleHeight = layout.height;
-
-		auto s = std::format("Content height: {:.2f}, Visible height: {:.2f}, Top offset: {:.2f}",
-							 contentHeight, visibleHeight, topOffset);
-		DrawText(s, static_cast<int>(layout.x + padding.left), static_cast<int>(layout.y + padding.top), LIGHTGRAY);
-
-		if (contentHeight > visibleHeight) {
-			auto scrollBarWidth = 10.f;
-			auto totalSpan = contentHeight + visibleHeight;
-			auto scrollBarHeight = layout.height * (visibleHeight / totalSpan);
-			auto scrollBarY = layout.y + (topOffset / totalSpan) * layout.height;
-			DrawRectangle(
-				static_cast<int>(layout.x + layout.width - scrollBarWidth),
-				static_cast<int>(scrollBarY),
-				static_cast<int>(scrollBarWidth),
-				static_cast<int>(scrollBarHeight),
-				LIGHTGRAY
-			);
-		}
+		//auto s = std::format("Content height: {:.2f}, Visible height: {:.2f}, Top offset: {:.2f}",
+		//					 contentHeight, visibleHeight, topOffset);
+		//DrawText(s, static_cast<int>(layout.x + padding.left), static_cast<int>(layout.y + padding.top), LIGHTGRAY);
 
 		EndScissorMode();
 	}
@@ -281,11 +282,10 @@ namespace UI {
 		auto minWidth = 0.f;
 		auto minHeight = 0.f;
 		for (const auto& slot: slots) {
-			if (slot->expandRatio != 0)
-				continue;
 			auto minSize = slot->widget->MinSize();
 			minWidth = max(minWidth, minSize.x);
-			minHeight += minSize.y;
+			if (slot->expandRatio == 0)
+				minHeight += minSize.y;
 		}
 
 		return Vector2 {minWidth, minHeight};
@@ -298,12 +298,12 @@ namespace UI {
 		layout.width = rectangle.width;
 		layout.height = rectangle.height;
 
-		auto freeSpaceLeft = max(0.f,layout.height - MinSize().y);
+		auto freeSpaceLeft = max(0.f, layout.height - MinSize().y);
 		auto currentY = layout.y;
 		for (const auto& slot: slots) {
 			auto childHeight = slot->expandRatio == 0
-				? slot->widget->MinSize().y
-				: freeSpaceLeft * slot->expandRatio;
+							   ? slot->widget->MinSize().y
+							   : freeSpaceLeft * slot->expandRatio;
 			auto childRect = Rectangle {layout.x, currentY, layout.width, childHeight};
 			slot->widget->LayoutWidget(childRect);
 			currentY += childHeight;
@@ -331,10 +331,9 @@ namespace UI {
 		auto width = 0.f;
 		auto height = 0.f;
 		for (const auto& slot: slots) {
-			if (slot->expandRatio != 0)
-				continue;
 			auto size = slot->widget->MinSize();
-			width += size.x;
+			if (slot->expandRatio == 0)
+				width += size.x;
 			height = max(height, size.y);
 		}
 		return Vector2 {width, height};
@@ -351,8 +350,8 @@ namespace UI {
 		auto currentX = layout.x;
 		for (const auto& slot: slots) {
 			auto childWidth = slot->expandRatio == 0
-				? slot->widget->MinSize().x
-				: freeSpaceLeft * slot->expandRatio;
+							  ? slot->widget->MinSize().x
+							  : freeSpaceLeft * slot->expandRatio;
 			auto childRect = Rectangle {currentX, layout.y, childWidth, layout.height};
 			slot->widget->LayoutWidget(childRect);
 			currentX += childWidth;
