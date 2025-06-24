@@ -11,7 +11,7 @@ using namespace std;
 
 static const int screenWidth = 800;
 static const int screenHeight = 600;
-static const char *windowTitle = "Raylib Window";
+static const char *windowTitle = "TextEd";
 static const int targetFPS = 60;
 
 struct FileInfo {
@@ -179,6 +179,7 @@ int main() {
 		window->Draw();
 
 		if (activeWidget == fileDialogue) {
+			DrawRectangleRec(screen, Fade(BLACK, 0.25f)); // semi-transparent background
 			fileDialogue->LayoutWidget(screen);
 			fileDialogue->Draw();
 		}

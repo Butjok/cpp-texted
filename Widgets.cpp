@@ -130,8 +130,8 @@ namespace UI {
 			whitespaces.clear();
 			for (const char& c: line)
 				whitespaces += isspace(c) ? '.' : ' ';
-			if (i != lines.size() - 1)
-				whitespaces += "\\n";
+			//if (i != lines.size() - 1)
+			//	whitespaces += "\\n";
 			DrawText(whitespaces, static_cast<int>(layout.x + padding.left),
 					 static_cast<int>(y), LIGHTGRAY);
 			DrawText(line, static_cast<int>(layout.x + padding.left),
@@ -143,65 +143,85 @@ namespace UI {
 			auto letterWidth = MeasureText("A").x;
 			DrawRectangle(
 				static_cast<int>(layout.x + padding.left + letterWidth * CursorColumn()),
-				static_cast<int>(layout.y + padding.top + letterHeight * cursorLine),
+				static_cast<int>(layout.y + padding.top + letterHeight * CursorLine()),
 				2, letterHeight, BLACK);
 		}
 
 		EndScissorMode();
 	}
 
-	int Input::CursorColumn() const {
-		const auto& line = lines[cursorLine];
-		return clamp(cursorDesiredColumn, 0, static_cast<int>(line.size()));
+	int Input::CursorLine() {
+		m_cursorLine = clamp(m_cursorLine, 0, static_cast<int>(lines.size()) - 1);
+		return m_cursorLine;
+	}
+	void Input::SetCursorLine(int line) {
+		m_cursorLine = clamp(line, 0, static_cast<int>(lines.size()) - 1);
+	}
+	int Input::CursorColumn() {
+		auto line = CursorLine();
+		return clamp(m_cursorDesiredColumn, 0, static_cast<int>(lines[line].size()));
+	}
+	void Input::SetCursorColumn(int column) {
+		auto line = CursorLine();
+		m_cursorDesiredColumn = clamp(column, 0, static_cast<int>(lines[line].size()));
+	}
+	std::string& Input::Line() {
+		auto line = CursorLine();
+		return lines[line];
 	}
 
 	void Input::HandleChar(int c) {
-		auto& line = lines[cursorLine];
+		auto& line = Line();
 		auto column = CursorColumn();
 		line.insert(line.begin() + column, static_cast<char>(c));
-		//cout << line << '\n';
-		cursorDesiredColumn = column + 1;
+		SetCursorColumn(column + 1);
 		if (onChange) onChange();
 	}
 
 	void Input::HandleKey(int key) {
-		auto column = CursorColumn();
+		auto cursorLine = CursorLine();
+		auto cursorColumn = CursorColumn();
+		auto& line = Line();
 		switch (key) {
 			case KEY_LEFT:
-				if (column > 0)
-					cursorDesiredColumn = column - 1;
+				if (cursorColumn > 0)
+					SetCursorColumn(cursorColumn - 1);
 				break;
 			case KEY_RIGHT:
-				if (column < static_cast<int>(lines[cursorLine].size()))
-					cursorDesiredColumn = column + 1;
+				if (cursorColumn < static_cast<int>(line.size()))
+					SetCursorColumn(cursorColumn + 1);
 				break;
 			case KEY_BACKSPACE:
-				if (column > 0) {
-					lines[cursorLine].erase(lines[cursorLine].begin() + column - 1);
-					cursorDesiredColumn = column - 1;
+				if (cursorColumn > 0) {
+					line.erase(line.begin() + cursorColumn - 1);
+					SetCursorColumn(cursorColumn - 1);
 					if (onChange) onChange();
 				}
 				else if (cursorLine > 0) {
-					cursorDesiredColumn = static_cast<int>(lines[cursorLine - 1].size());
+					SetCursorLine(cursorLine - 1);
+					auto previousLineLength = lines[cursorLine - 1].size();
 					lines[cursorLine - 1] += lines[cursorLine];
 					lines.erase(lines.begin() + cursorLine);
-					cursorLine--;
+					SetCursorColumn(previousLineLength);
 					if (onChange) onChange();
 				}
 				break;
-			case KEY_ENTER:
-				lines.insert(lines.begin() + cursorLine + 1, "");
-				cursorLine++;
-				cursorDesiredColumn = 0;
+			case KEY_ENTER: {// we need to break current line in two
+				auto newLine = line.substr(cursorColumn);
+				line.erase(line.begin() + cursorColumn, line.end());
+				lines.insert(lines.begin() + cursorLine + 1, newLine);
+				SetCursorLine(cursorLine + 1);
+				SetCursorColumn(0);
 				if (onChange) onChange();
 				break;
+			}
 			case KEY_UP:
 				if (cursorLine > 0)
-					cursorLine--;
+					SetCursorLine(cursorLine - 1);
 				break;
 			case KEY_DOWN:
 				if (cursorLine < static_cast<int>(lines.size()) - 1)
-					cursorLine++;
+					SetCursorLine(cursorLine + 1);
 				break;
 			case KEY_TAB:
 				for (auto i = 0; i < 4; i++)

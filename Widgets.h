@@ -70,11 +70,16 @@ namespace UI {
 
 	struct Input : public Label {
 		std::vector<std::string>& lines;
-		int cursorDesiredColumn = 0;
-		int cursorLine = 0;
+		int m_cursorDesiredColumn = 0;
+		int m_cursorLine = 0;
 		std::function<void()> onChange = nullptr;
 
-		int CursorColumn() const;
+		int CursorLine();
+		void SetCursorLine(int line);
+		int CursorColumn();
+		void SetCursorColumn(int column);
+		std::string& Line();
+
 		Input (std::vector<std::string>& lines, Color color = BLACK, const Margin& padding = Margin{5, 5, 5, 5});
 		Vector2 MinSize() const override;
 		void Draw() override;
