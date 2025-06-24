@@ -135,7 +135,7 @@ namespace UI {
 
 		if (activeInput.get() == this) {
 			float thickness = 2;
-			DrawRectangleLinesEx(layout, thickness, BLUE);
+			DrawRectangleLinesEx(layout, thickness, Fade(BLUE, .5f));
 		}
 		DrawRectangleLinesEx(layout, 1, Fade(BLACK, .25));
 
