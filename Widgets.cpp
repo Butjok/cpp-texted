@@ -1,6 +1,7 @@
 #include "Widgets.h"
 #include <queue>
 #include <iostream>
+#include <format>
 
 using namespace std;
 
@@ -50,9 +51,8 @@ namespace UI {
 	void Label::LayoutWidget(const Rectangle& rectangle) {
 		layout.x = rectangle.x;
 		layout.y = rectangle.y;
-		auto size = MinSize();
-		layout.width = max(rectangle.width, size.x);
-		layout.height = max(rectangle.height, size.y);
+		layout.width = rectangle.width;
+		layout.height = rectangle.height;
 	}
 
 	void Label::Draw() {
@@ -123,7 +123,7 @@ namespace UI {
 		BeginScissorMode(layout);
 
 		auto letterHeight = font.baseSize / GetWindowScaleDPI().y;
-		auto y = layout.y + padding.top;
+		auto y = layout.y + padding.top - topOffset;
 		auto whitespaces = string();
 		for (auto i = 0; i < lines.size(); i++) {
 			const auto& line = lines[i];
@@ -143,8 +143,29 @@ namespace UI {
 			auto letterWidth = MeasureText("A").x;
 			DrawRectangle(
 				static_cast<int>(layout.x + padding.left + letterWidth * CursorColumn()),
-				static_cast<int>(layout.y + padding.top + letterHeight * CursorLine()),
+				static_cast<int>(layout.y + padding.top + letterHeight * CursorLine() - topOffset),
 				2, letterHeight, BLACK);
+		}
+
+		auto contentHeight = static_cast<float>(lines.size()) * letterHeight + padding.top + padding.bottom;
+		auto visibleHeight = layout.height;
+
+		auto s = std::format("Content height: {:.2f}, Visible height: {:.2f}, Top offset: {:.2f}",
+							 contentHeight, visibleHeight, topOffset);
+		DrawText(s, static_cast<int>(layout.x + padding.left), static_cast<int>(layout.y + padding.top), LIGHTGRAY);
+
+		if (contentHeight > visibleHeight) {
+			auto scrollBarWidth = 10.f;
+			auto totalSpan = contentHeight + visibleHeight;
+			auto scrollBarHeight = layout.height * (visibleHeight / totalSpan);
+			auto scrollBarY = layout.y + (topOffset / totalSpan) * layout.height;
+			DrawRectangle(
+				static_cast<int>(layout.x + layout.width - scrollBarWidth),
+				static_cast<int>(scrollBarY),
+				static_cast<int>(scrollBarWidth),
+				static_cast<int>(scrollBarHeight),
+				LIGHTGRAY
+			);
 		}
 
 		EndScissorMode();
@@ -231,6 +252,27 @@ namespace UI {
 		}
 	}
 
+	void Input::SetCursorFromPosition(const Vector2& position) {
+		if (visibility == Visibility::Collapsed)
+			return;
+
+		auto letterHeight = font.baseSize / GetWindowScaleDPI().y;
+		auto letterWidth = MeasureText("A").x;
+		auto relativeX = position.x - layout.x - padding.left;
+		auto relativeY = position.y - layout.y - padding.top + topOffset;
+
+		SetCursorLine(relativeY / letterHeight);
+		SetCursorColumn(relativeX / letterWidth);
+	}
+
+	void Input::SetTopOffset(float newTopOffset) {
+		auto lineHeight = font.baseSize / GetWindowScaleDPI().y;
+		auto linesNum = static_cast<int>(lines.size());
+		auto contentHeight = linesNum * lineHeight;
+		auto contentHeightWithPadding = contentHeight + padding.top + padding.bottom;
+		topOffset = clamp(newTopOffset, 0.f, contentHeightWithPadding);
+	}
+
 	// VerticalBox implementation
 
 	Vector2 VerticalBox::MinSize() const {
@@ -239,6 +281,8 @@ namespace UI {
 		auto minWidth = 0.f;
 		auto minHeight = 0.f;
 		for (const auto& slot: slots) {
+			if (slot->expandRatio != 0)
+				continue;
 			auto minSize = slot->widget->MinSize();
 			minWidth = max(minWidth, minSize.x);
 			minHeight += minSize.y;
@@ -251,20 +295,19 @@ namespace UI {
 
 		layout.x = rectangle.x;
 		layout.y = rectangle.y;
-		auto size = MinSize();
-		layout.width = max(rectangle.width, size.x);
-		layout.height = max(rectangle.height, size.y);
+		layout.width = rectangle.width;
+		layout.height = rectangle.height;
 
-		auto freeHeightSpace = max(0.f, layout.height - MinSize().y);
+		auto freeSpaceLeft = max(0.f,layout.height - MinSize().y);
 		auto currentY = layout.y;
 		for (const auto& slot: slots) {
-			auto childSize = slot->widget->MinSize();
-			childSize.y += freeHeightSpace * slot->expandRatio;
-			auto childRect = Rectangle {layout.x, currentY, layout.width, childSize.y};
+			auto childHeight = slot->expandRatio == 0
+				? slot->widget->MinSize().y
+				: freeSpaceLeft * slot->expandRatio;
+			auto childRect = Rectangle {layout.x, currentY, layout.width, childHeight};
 			slot->widget->LayoutWidget(childRect);
-			currentY += childSize.y;
+			currentY += childHeight;
 		}
-
 	}
 
 	void VerticalBox::Draw() {
@@ -288,6 +331,8 @@ namespace UI {
 		auto width = 0.f;
 		auto height = 0.f;
 		for (const auto& slot: slots) {
+			if (slot->expandRatio != 0)
+				continue;
 			auto size = slot->widget->MinSize();
 			width += size.x;
 			height = max(height, size.y);
@@ -299,18 +344,18 @@ namespace UI {
 
 		layout.x = rectangle.x;
 		layout.y = rectangle.y;
-		auto size = MinSize();
-		layout.width = max(rectangle.width, size.x);
-		layout.height = max(rectangle.height, size.y);
+		layout.width = rectangle.width;
+		layout.height = rectangle.height;
 
-		auto freeWidthSpace = max(0.f, layout.width - MinSize().x);
+		auto freeSpaceLeft = max(0.f, layout.width - MinSize().x);
 		auto currentX = layout.x;
 		for (const auto& slot: slots) {
-			auto childSize = slot->widget->MinSize();
-			childSize.x += freeWidthSpace * slot->expandRatio;
-			auto childRect = Rectangle {currentX, layout.y, childSize.x, layout.height};
+			auto childWidth = slot->expandRatio == 0
+				? slot->widget->MinSize().x
+				: freeSpaceLeft * slot->expandRatio;
+			auto childRect = Rectangle {currentX, layout.y, childWidth, layout.height};
 			slot->widget->LayoutWidget(childRect);
-			currentX += childSize.x;
+			currentX += childWidth;
 		}
 	}
 
@@ -401,8 +446,15 @@ namespace UI {
 				}
 			}
 			else if (auto input = dynamic_pointer_cast<Input>(hoveredLeafWidget)) {
-				if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-					activeInput = input;
+				if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+					if (input != activeInput)
+						activeInput = input;
+					else
+						input->SetCursorFromPosition(mousePosition);
+				}
+				auto wheelMove = GetMouseWheelMoveV().y;
+				if (wheelMove != 0)
+					input->SetTopOffset(input->TopOffset() - wheelMove * 10);
 			}
 		}
 

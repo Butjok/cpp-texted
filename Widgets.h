@@ -73,6 +73,7 @@ namespace UI {
 		int m_cursorDesiredColumn = 0;
 		int m_cursorLine = 0;
 		std::function<void()> onChange = nullptr;
+		float topOffset = 0;
 
 		int CursorLine();
 		void SetCursorLine(int line);
@@ -80,18 +81,22 @@ namespace UI {
 		void SetCursorColumn(int column);
 		std::string& Line();
 
+		float TopOffset() const { return topOffset; }
+		void SetTopOffset(float newTopOffset);
+
 		Input (std::vector<std::string>& lines, Color color = BLACK, const Margin& padding = Margin{5, 5, 5, 5});
 		Vector2 MinSize() const override;
 		void Draw() override;
 		void HandleChar(int c);
 		void HandleKey(int key);
+
+		void SetCursorFromPosition(const Vector2& position);
 	};
 
 	struct VerticalBox : public UIWidget {
 		struct Slot {
 			std::shared_ptr<UIWidget> widget = nullptr;
 			float expandRatio = 0;
-			Margin padding = {0, 0, 0, 0};
 		};
 		std::vector<std::shared_ptr<Slot>> slots;
 
@@ -106,7 +111,6 @@ namespace UI {
 		struct Slot {
 			std::shared_ptr<UIWidget> widget = nullptr;
 			float expandRatio = 0;
-			Margin padding = {0, 0, 0, 0};
 		};
 		std::vector<std::shared_ptr<Slot>> slots;
 

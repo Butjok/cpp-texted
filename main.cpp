@@ -82,6 +82,9 @@ void PerformFileDialogueAction() {
 
 int main() {
 
+	filePath[0] = "/Users/user/file.cpp";
+	PerformFileDialogueAction();
+
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 	InitWindow(screenWidth, screenHeight, windowTitle);
 	SetTargetFPS(targetFPS);
@@ -120,6 +123,9 @@ int main() {
 		};
 		auto slot = window->AddSlot(input);
 		slot->expandRatio = 1;
+	}
+	{
+		window->AddSlot(make_shared<UI::Label>("Press F1 to open file dialogue", BLACK, UI::Margin {10, 10, 10, 10}));
 	}
 
 	fileDialogue = make_shared<UI::VerticalBox>();
