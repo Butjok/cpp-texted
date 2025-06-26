@@ -87,8 +87,8 @@ namespace UI {
 		Input (std::vector<std::string>& lines, Color color = BLACK, const Margin& padding = Margin{5, 5, 5, 5});
 		Vector2 MinSize() const override;
 		void Draw() override;
-		void HandleChar(int c);
-		void HandleKey(int key);
+		bool HandleChar(int c);
+		bool HandleKey(int key);
 
 		void SetCursorFromPosition(const Vector2& position);
 	};
@@ -122,5 +122,5 @@ namespace UI {
 	};
 
 	std::shared_ptr<UIWidget> FindLeafWidgetAtPosition(const std::shared_ptr<UIWidget>& root, const Vector2& position);
-	void Tick(const std::shared_ptr<UIWidget>& root);
+	bool Tick(const std::shared_ptr<UIWidget>& root);
 }

@@ -192,32 +192,38 @@ namespace UI {
 		return lines[line];
 	}
 
-	void Input::HandleChar(int c) {
+	bool Input::HandleChar(int c) {
 		auto& line = Line();
 		auto column = CursorColumn();
 		line.insert(line.begin() + column, static_cast<char>(c));
 		SetCursorColumn(column + 1);
 		if (onChange) onChange();
+		return true;
 	}
 
-	void Input::HandleKey(int key) {
+	bool Input::HandleKey(int key) {
 		auto cursorLine = CursorLine();
 		auto cursorColumn = CursorColumn();
 		auto& line = Line();
 		switch (key) {
 			case KEY_LEFT:
-				if (cursorColumn > 0)
+				if (cursorColumn > 0) {
 					SetCursorColumn(cursorColumn - 1);
+					return true;
+				}
 				break;
 			case KEY_RIGHT:
-				if (cursorColumn < static_cast<int>(line.size()))
+				if (cursorColumn < static_cast<int>(line.size())) {
 					SetCursorColumn(cursorColumn + 1);
+					return true;
+				}
 				break;
 			case KEY_BACKSPACE:
 				if (cursorColumn > 0) {
 					line.erase(line.begin() + cursorColumn - 1);
 					SetCursorColumn(cursorColumn - 1);
 					if (onChange) onChange();
+					return true;
 				}
 				else if (cursorLine > 0) {
 					SetCursorLine(cursorLine - 1);
@@ -226,6 +232,7 @@ namespace UI {
 					lines.erase(lines.begin() + cursorLine);
 					SetCursorColumn(previousLineLength);
 					if (onChange) onChange();
+					return true;
 				}
 				break;
 			case KEY_ENTER: {// we need to break current line in two
@@ -235,22 +242,28 @@ namespace UI {
 				SetCursorLine(cursorLine + 1);
 				SetCursorColumn(0);
 				if (onChange) onChange();
-				break;
+				return true;
 			}
 			case KEY_UP:
-				if (cursorLine > 0)
+				if (cursorLine > 0) {
 					SetCursorLine(cursorLine - 1);
+					return true;
+				}
 				break;
 			case KEY_DOWN:
-				if (cursorLine < static_cast<int>(lines.size()) - 1)
+				if (cursorLine < static_cast<int>(lines.size()) - 1) {
 					SetCursorLine(cursorLine + 1);
+					return true;
+				}
 				break;
 			case KEY_TAB:
 				for (auto i = 0; i < 4; i++)
 					HandleChar(' ');
 				if (onChange) onChange();
-				break;
+				return true;
 		}
+
+		return false;
 	}
 
 	void Input::SetCursorFromPosition(const Vector2& position) {
@@ -415,14 +428,16 @@ namespace UI {
 
 	static bool mouseWasMovedAtLeastOnce = false;
 
-	void Tick(const std::shared_ptr<UIWidget>& root) {
+	bool Tick(const std::shared_ptr<UIWidget>& root) {
 
 		auto mouseDelta = GetMouseDelta();
 		if (mouseDelta.x != 0 || mouseDelta.y != 0)
 			mouseWasMovedAtLeastOnce = true;
 
 		if (!mouseWasMovedAtLeastOnce)
-			return; // No mouse movement, no need to process input
+			return false; // No mouse movement, no need to process input
+
+		auto needRedraw = false;
 
 		auto mousePosition = GetMousePosition();
 		auto hoveredLeafWidget = FindLeafWidgetAtPosition(root, mousePosition);
@@ -430,6 +445,7 @@ namespace UI {
 		if (lastHoveredLeafWidget && lastHoveredLeafWidget != hoveredLeafWidget) {
 			lastHoveredLeafWidget->isHovered = false;
 			lastHoveredLeafWidget->isActive = false;
+			needRedraw = true;
 		}
 		if (hoveredLeafWidget) {
 			hoveredLeafWidget->isHovered = true;
@@ -437,23 +453,32 @@ namespace UI {
 				if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 					mouseDownButton = button;
 					button->isActive = true;
+					needRedraw = true;
 				}
 				else if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && mouseDownButton == button && button->isActive) {
 					if (button->onClick)
 						button->onClick();
 					button->isActive = false;
+					needRedraw = true;
 				}
 			}
 			else if (auto input = dynamic_pointer_cast<Input>(hoveredLeafWidget)) {
 				if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-					if (input != activeInput)
+					if (input != activeInput) {
 						activeInput = input;
-					else
+						needRedraw = true;
+					}
+					else {
 						input->SetCursorFromPosition(mousePosition);
+						needRedraw = true;
+					}
 				}
 				auto wheelMove = GetMouseWheelMoveV().y;
-				if (wheelMove != 0)
+				if (wheelMove != 0) {
+					auto oldTopOffset = input->TopOffset();
 					input->SetTopOffset(input->TopOffset() - wheelMove * 10);
+					needRedraw = oldTopOffset != input->TopOffset() || needRedraw;
+				}
 			}
 		}
 
@@ -461,16 +486,20 @@ namespace UI {
 			mouseDownButton = nullptr;
 		}
 
-		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && hoveredLeafWidget != activeInput)
+		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && hoveredLeafWidget != activeInput) {
 			ResetActiveInput();
+		 	needRedraw = true;
+		}
 
 		if (activeInput) {
 			while (auto c = GetCharPressed())
-				activeInput->HandleChar(c);
+				needRedraw = activeInput->HandleChar(c) || needRedraw;
 			while (auto key = GetKeyPressed())
-				activeInput->HandleKey(key);
+				needRedraw = activeInput->HandleKey(key) || needRedraw;
 		}
 
 		lastHoveredLeafWidget = hoveredLeafWidget;
+
+		return needRedraw;
 	}
 }

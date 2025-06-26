@@ -6,8 +6,10 @@
 #include <functional>
 #include <format>
 #include "Widgets.h"
+#include <filesystem>
 
 using namespace std;
+using namespace std::filesystem;
 //using namespace UI;
 
 static const int screenWidth = 800;
@@ -92,12 +94,18 @@ int main() {
 	SetTargetFPS(targetFPS);
 	SetExitKey(0);
 
-	UI::font = LoadFontEx("Inconsolata-Regular.ttf", 16 * GetWindowScaleDPI().y, nullptr, 0);
+	path currentDirectory = GetApplicationDirectory();
+	UI::font = LoadFontEx((currentDirectory / "Inconsolata-Regular.ttf").c_str(), 16 * GetWindowScaleDPI().y, nullptr, 0);
 
 	window = make_shared<UI::VerticalBox>();
 	{
 		auto horizontalBox = make_shared<UI::HorizontalBox>();
 		auto slot = window->AddSlot(horizontalBox);
+		{
+			auto button = make_shared<UI::Button>("New");
+			button->onClick = []() { fileInfo = FileInfo(); };
+			auto slot = horizontalBox->AddSlot(button);
+		}
 		{
 			auto button = make_shared<UI::Button>("Open");
 			button->onClick = []() { OpenDialogue(FileDialogueType::Open); };
@@ -182,25 +190,39 @@ int main() {
 
 	activeWidget = window;
 
+	auto firstFrame = true;
+
 	while (!WindowShouldClose()) {
-		BeginDrawing();
-		ClearBackground(RAYWHITE);
 
-		UI::Tick(activeWidget);
-
-		// start with full screen rect
 		auto screen = Rectangle {0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())};
 
-		window->LayoutWidget(screen);
-		window->Draw();
-
-		if (activeWidget == fileDialogue) {
-			DrawRectangleRec(screen, Fade(BLACK, 0.25f)); // semi-transparent background
+		if (IsWindowResized() || firstFrame) {
+			window->LayoutWidget(screen);
 			fileDialogue->LayoutWidget(screen);
-			fileDialogue->Draw();
+			cout << "Layout updated." << endl;
 		}
 
-		EndDrawing();
+		if (UI::Tick(activeWidget) || firstFrame || IsWindowResized()) {
+
+			BeginDrawing();
+			ClearBackground(RAYWHITE);
+
+			window->Draw();
+
+			if (activeWidget == fileDialogue) {
+				DrawRectangleRec(screen, Fade(BLACK, 0.25f)); // semi-transparent background
+				fileDialogue->Draw();
+			}
+
+			EndDrawing();
+
+			//cout << "Redrawing UI..." << endl;
+		}
+
+		if (firstFrame)
+			firstFrame = false;
+
+		PollInputEvents();
 	}
 
 	CloseWindow();
