@@ -4,6 +4,7 @@
 #include <string>
 #include <functional>
 #include <list>
+#include <unordered_map>
 
 namespace UI {
 

@@ -2,6 +2,7 @@
 #include <queue>
 #include <iostream>
 #include <format>
+#include <functional>
 
 using namespace std;
 
@@ -211,10 +212,30 @@ namespace UI {
 					SetCursorColumn(cursorColumn - 1);
 					return true;
 				}
+				else if (cursorLine > 0) {
+					SetCursorLine(cursorLine - 1);
+					SetCursorColumn(Line().size());
+					return true;
+				}
+				break;
+			case KEY_UP:
+				if (cursorLine > 0) {
+					SetCursorLine(cursorLine - 1);
+					return true;
+				}
+				else if (cursorColumn > 0) {
+					SetCursorColumn(0);
+					return true;
+				}
 				break;
 			case KEY_RIGHT:
 				if (cursorColumn < static_cast<int>(line.size())) {
 					SetCursorColumn(cursorColumn + 1);
+					return true;
+				}
+				else if (cursorLine < static_cast<int>(lines.size()) - 1) {
+					SetCursorLine(cursorLine + 1);
+					SetCursorColumn(0);
 					return true;
 				}
 				break;
@@ -244,15 +265,13 @@ namespace UI {
 				if (onChange) onChange();
 				return true;
 			}
-			case KEY_UP:
-				if (cursorLine > 0) {
-					SetCursorLine(cursorLine - 1);
-					return true;
-				}
-				break;
 			case KEY_DOWN:
 				if (cursorLine < static_cast<int>(lines.size()) - 1) {
 					SetCursorLine(cursorLine + 1);
+					return true;
+				}
+				else if (cursorColumn < static_cast<int>(line.size())) {
+					SetCursorColumn(line.size());
 					return true;
 				}
 				break;
@@ -428,7 +447,26 @@ namespace UI {
 
 	static bool mouseWasMovedAtLeastOnce = false;
 
+	static std::unordered_map<int, double> nextKeyRepeatTime;
+	static std::vector<int> keysThisTick;
+
 	bool Tick(const std::shared_ptr<UIWidget>& root) {
+
+		keysThisTick.clear();
+		while (auto key = GetKeyPressed()) {
+			keysThisTick.push_back(key);
+			if (nextKeyRepeatTime.find(key) == nextKeyRepeatTime.end())
+				nextKeyRepeatTime[key] = GetTime() + .25;
+		}
+		std::erase_if(nextKeyRepeatTime, [](const auto& pair) {
+			return !IsKeyDown(pair.first);
+		});
+		for (const auto& [key, nextTime]: nextKeyRepeatTime)
+			if (nextTime <= GetTime()) {
+				keysThisTick.push_back(key);
+				nextKeyRepeatTime[key] = GetTime() + .033;
+			}
+
 
 		auto mouseDelta = GetMouseDelta();
 		if (mouseDelta.x != 0 || mouseDelta.y != 0)
@@ -494,7 +532,7 @@ namespace UI {
 		if (activeInput) {
 			while (auto c = GetCharPressed())
 				needRedraw = activeInput->HandleChar(c) || needRedraw;
-			while (auto key = GetKeyPressed())
+			for (const auto& key: keysThisTick)
 				needRedraw = activeInput->HandleKey(key) || needRedraw;
 		}
 
