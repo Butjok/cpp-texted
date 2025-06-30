@@ -5,6 +5,7 @@
 #include <functional>
 #include <list>
 #include <unordered_map>
+#include "Lexer.h"
 
 namespace UI {
 
@@ -70,6 +71,7 @@ namespace UI {
 	};
 
 	struct Input : public Label {
+		std::unique_ptr<Lexer> lexer = nullptr;
 		std::vector<std::string>& lines;
 		int m_cursorDesiredColumn = 0;
 		int m_cursorLine = 0;

@@ -108,6 +108,22 @@ namespace UI {
 		return Vector2 {minWidth, minHeight};
 	}
 
+	static unordered_map<string, Color> colors = {
+		{"Invalid", BLACK},
+		{"Identifier", BLACK},
+		{"Keyword", {0,0,255,255}},
+		{"Literal", GREEN},
+		{"Operator", RED},
+		{"Punctuation", DARKGRAY},
+		{"Whitespace", LIGHTGRAY},
+		{"LineComment", GRAY},
+		{"BlockComment", DARKGRAY},
+		{"Directive", {128, 0, 128, 255}},
+		{"StringLiteral", {128, 0, 0, 255}},
+		{"CharLiteral", {128, 0, 0, 255}},
+		{"EOF", BLACK}
+	};
+
 	void Input::Draw() {
 		if (visibility == Visibility::Collapsed)
 			return;
@@ -119,6 +135,7 @@ namespace UI {
 		auto letterHeight = font.baseSize / GetWindowScaleDPI().y;
 		auto contentHeight = static_cast<float>(lines.size()) * letterHeight + padding.top + padding.bottom;
 		auto visibleHeight = layout.height;
+		auto letterWidth = MeasureText("A").x;
 
 		if (contentHeight > visibleHeight) {
 			auto scrollBarWidth = 10.f;
@@ -143,28 +160,41 @@ namespace UI {
 		BeginScissorMode(layout);
 
 		auto y = layout.y + padding.top - topOffset;
-		auto whitespaces = string();
-		for (auto i = 0; i < lines.size(); i++) {
-			const auto& line = lines[i];
-			whitespaces.clear();
-			for (const char& c: line)
-				whitespaces += isspace(c) ? '.' : ' ';
-			//if (i != lines.size() - 1)
-			//	whitespaces += "\\n";
-			DrawText(whitespaces, static_cast<int>(layout.x + padding.left),
-					 static_cast<int>(y), LIGHTGRAY);
-			DrawText(line, static_cast<int>(layout.x + padding.left),
-					 static_cast<int>(y), BLACK);
-			y += letterHeight;
+		auto startX = layout.x + padding.left;
+		if (!lexer)
+			for (auto i = 0; i < lines.size(); i++) {
+				const auto& line = lines[i];
+				DrawText(line, static_cast<int>(layout.x + padding.left),
+						 static_cast<int>(y), BLACK);
+				y += letterHeight;
+			}
+		else {
+			auto x = startX;
+			lexer->lines = &lines;
+			lexer->Reset();
+			lexer->NextToken();
+			while (lexer->currentToken.type != EOF) {
+				auto colorIt = colors.find(lexer->TokenTypeName(lexer->currentToken.type));
+				auto color = colorIt != colors.end() ? colorIt->second : BLACK;
+				for (char c : lexer->currentToken.text) {
+					if (c == '\n'){
+						x = startX;
+						y += letterHeight;
+						continue;
+					}
+					DrawTextCodepoint(font, c, Vector2 {x, y}, GetScaledFontSize(font.baseSize), color);
+					x += letterWidth;
+				}
+				lexer->NextToken();
+			}
 		}
 
-		if (activeInput.get() == this) {
-			auto letterWidth = MeasureText("A").x;
+		// draw cursor
+		if (activeInput.get() == this)
 			DrawRectangle(
 				static_cast<int>(layout.x + padding.left + letterWidth * CursorColumn()),
 				static_cast<int>(layout.y + padding.top + letterHeight * CursorLine() - topOffset),
 				2, letterHeight, BLACK);
-		}
 
 		//auto s = std::format("Content height: {:.2f}, Visible height: {:.2f}, Top offset: {:.2f}",
 		//					 contentHeight, visibleHeight, topOffset);
@@ -526,7 +556,7 @@ namespace UI {
 
 		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && hoveredLeafWidget != activeInput) {
 			ResetActiveInput();
-		 	needRedraw = true;
+			needRedraw = true;
 		}
 
 		if (activeInput) {

@@ -7,6 +7,7 @@
 #include <format>
 #include "Widgets.h"
 #include <filesystem>
+#include "Lexer.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -135,6 +136,7 @@ int main() {
 		textarea->onChange = []() {
 			fileInfo.wasModified = fileInfo.lines != fileInfo.originalLines;
 		};
+		textarea->lexer = make_unique<CppLexer>();
 		auto slot = window->AddSlot(textarea);
 		slot->expandRatio = 1;
 	}

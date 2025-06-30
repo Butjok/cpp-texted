@@ -7,7 +7,9 @@ find_package(raylib REQUIRED)
 
 add_executable(tracing main.cpp
         Widgets.h
-        Widgets.cpp)
+        Widgets.cpp
+        Lexer.h
+        Lexer.cpp)
 
 target_link_libraries(tracing raylib)
 target_include_directories(tracing PRIVATE ${raylib_INCLUDE_DIRS})
