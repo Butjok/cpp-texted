@@ -108,20 +108,19 @@ namespace UI {
 		return Vector2 {minWidth, minHeight};
 	}
 
-	static unordered_map<string, Color> colors = {
-		{"Invalid", BLACK},
-		{"Identifier", BLACK},
-		{"Keyword", {0,0,255,255}},
-		{"Literal", GREEN},
-		{"Operator", RED},
-		{"Punctuation", DARKGRAY},
-		{"Whitespace", LIGHTGRAY},
-		{"LineComment", GRAY},
-		{"BlockComment", DARKGRAY},
-		{"Directive", {128, 0, 128, 255}},
-		{"StringLiteral", {128, 0, 0, 255}},
-		{"CharLiteral", {128, 0, 0, 255}},
-		{"EOF", BLACK}
+	static auto colors = vector {
+		BLACK, // Invalid
+		BLACK, // Identifier
+		{0, 0, 255, 255}, // Keyword
+		GREEN, // Literal
+		RED, // Operator
+		DARKGRAY, // Punctuation
+		LIGHTGRAY, // Whitespace
+		GRAY, // LineComment
+		DARKGRAY, // BlockComment
+		{128, 0, 128, 255}, // Directive
+		{128, 0, 0, 255}, // StringLiteral
+		{128, 0, 0, 255} // CharLiteral
 	};
 
 	void Input::Draw() {
@@ -174,8 +173,7 @@ namespace UI {
 			lexer->Reset();
 			lexer->NextToken();
 			while (lexer->currentToken.type != EOF) {
-				auto colorIt = colors.find(lexer->TokenTypeName(lexer->currentToken.type));
-				auto color = colorIt != colors.end() ? colorIt->second : BLACK;
+				auto color = lexer->currentToken.type < colors.size() ? colors[lexer->currentToken.type] : BLACK;
 				for (char c : lexer->currentToken.text) {
 					if (c == '\n'){
 						x = startX;
